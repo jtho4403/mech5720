@@ -12,16 +12,18 @@ Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle
 import argparse
 import threading
 import time
+import platform
 
 import cv2
 import numpy as np
 import requests
 
-import glfw
 import OpenGL.GL as gl
 # --- CORRECTED IMPORTS ---
 from imgui_bundle import imgui
 from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
+
+import glfw
 
 # Bytes-per-pixel for the pixel formats the server supports.
 BYTES_PER_PIXEL = {
@@ -358,8 +360,20 @@ def main():
         print("Error: Could not initialize GLFW")
         return
 
-    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 2)
-    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
+    # OpenGL context configuration.
+    # imgui_bundle's programmable OpenGL renderer requires a modern OpenGL
+    # context. On macOS, GLFW must request a forward-compatible Core Profile
+    # for OpenGL 3.2+, otherwise renderer shader initialization can fail.
+    if platform.system() == "Darwin":
+        # macOS requires a Core Profile and forward-compatible context for modern OpenGL.
+        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 2)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
+    else:
+        # Modern context for imgui_bundle programmable backend
+        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
 
     window = glfw.create_window(1280, 720, "Pi Camera Control Client", None, None)
     if not window:
@@ -369,6 +383,11 @@ def main():
 
     glfw.make_context_current(window)
     glfw.swap_interval(1)
+
+    print("OpenGL vendor:", gl.glGetString(gl.GL_VENDOR).decode())
+    print("OpenGL renderer:", gl.glGetString(gl.GL_RENDERER).decode())
+    print("OpenGL version:", gl.glGetString(gl.GL_VERSION).decode())
+    print("GLSL version:", gl.glGetString(gl.GL_SHADING_LANGUAGE_VERSION).decode())
 
     # --- RENDERER BINDING SETUP ---
     imgui.create_context()
