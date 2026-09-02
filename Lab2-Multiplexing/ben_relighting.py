@@ -25,7 +25,8 @@ import imaging as im
 # your own capture lives in this block.
 
 # directory holding the image files
-DATA_PATH = "/Users/jackthompson/MECH5720/codeRepo/mech5720/data/lab2/captured"
+DATA_PATH = "/Users/jackthompson/MECH5720/codeRepo/mech5720/data/lab2/captured_png/"
+# DATA_PATH = "data/lab2/example/"
 
 BLACK_LEVEL = 0.0               # sensor black level, normalised (see Lab 1)
 
@@ -87,7 +88,7 @@ fig = im.show(ambient_stack[0], "Ambient, single frame",
 
 # TODO 1: average the ambient frames to get a low-noise ambient estimate.
 #         Result should have shape (H, W, C), i.e. one image, not a stack.
-ambient = ambient_stack.mean(axis=0)
+ambient = np.average( ambient_stack, axis=0 ) # np.zeros_like(mux[0])  # <-- your code here
 
 fig = im.show(ambient, "Ambient, averaged over %d frames" % N_AMBIENT,
               GAMMA_DISPLAY, fignum=4)
@@ -111,7 +112,7 @@ im.save_figure(fig, "03_ambient_averaged")
 # only, and imaging.show() already handles it.
 
 # TODO 2: subtract the ambient estimate from the multiplexed stack.
-mux = mux - ambient  # broadcasts (H,W,C) against (N_SITES,H,W,C)
+mux = mux - ambient # <-- your code here
 
 fig = im.show_stack(mux, "Multiplexed input, ambient removed",
                     GAMMA_DISPLAY, fignum=5)
@@ -134,7 +135,8 @@ print("Flattened for solving:", mux_flat.shape)
 #         Use np.linalg.solve rather than forming H^-1 explicitly: it is
 #         better conditioned and faster. The answer is the same either
 #         way, so this is a numerical choice, not a mathematical one.
-demux_flat = np.linalg.solve(H, mux_flat)
+demux_flat = np.linalg.solve(H, mux_flat) # mux_flat  # <-- your code here
+
 demux = demux_flat.reshape(original_shape)
 
 fig = im.show_stack(im.side_by_side(mux, demux),
@@ -156,7 +158,7 @@ fig = im.show_stack(demux + ambient,
                     GAMMA_DISPLAY, fignum=7)
 
 # TODO 4: synthesise the scene as it would appear with all sites on.
-allon_est_demux = demux.sum(axis=0) + ambient
+allon_est_demux = ambient + np.sum(demux, axis=0) # <-- your code here
 
 fig = im.show(allon_est_demux, "Synthesised: all sites on",
               GAMMA_DISPLAY, fignum=8)
@@ -167,25 +169,8 @@ im.save_figure(fig, "06_synth_allon")
 #         checkerboard depends on how the sites were laid out on the
 #         display at capture time, so work out the layout for the
 #         dataset you are using before you pick them.
-#
-#         ASSUMPTION (verify against your own capture!): the N_SITES + 1
-#         = 16 physical positions were laid out as a 4x4 grid on the
-#         monitor in row-major order, with the position corresponding to
-#         Hadamard index 0 being the one dropped when H's first row/col
-#         were removed. Sites 1..15 (0-indexed 0..14 after the drop) map
-#         onto the remaining 15 grid cells in that same row-major order.
-#         If your capture software used a different layout, recompute
-#         checker_indices accordingly -- e.g. by looking at the Impulse
-#         frames one at a time to see which screen region lights up for
-#         each index.
-grid_size = int(np.round(np.sqrt(N_SITES + 1)))  # 4x4 grid
-full_ids = np.arange(N_SITES + 1)
-rows_grid, cols_grid = np.unravel_index(full_ids, (grid_size, grid_size))
-checker_mask_full = (rows_grid + cols_grid) % 2 == 0
-checker_mask = checker_mask_full[1:]           # drop position 0, as H does
-checker_indices = np.where(checker_mask)[0]    # indices into demux/H rows
 
-relit = demux[checker_indices].sum(axis=0) + ambient
+relit = ambient + np.sum( demux[::2], axis=0 )  # <-- your code here
 
 fig = im.show(relit, "Synthesised: checkerboard illumination",
               GAMMA_DISPLAY, fignum=9)
@@ -198,9 +183,9 @@ im.save_figure(fig, "07_synth_checkerboard")
 
 creative = np.zeros_like(demux[0])
 if creative.shape[-1] == 3:
-    creative[:, :, 0] = demux[0:4, :, :, 0].sum(axis=0)
-    creative[:, :, 1] = demux[12:15, :, :, 1].sum(axis=0)
-    creative[:, :, 2] = 2.0 * demux[3::4, :, :, 2].sum(axis=0)
+    creative[:, :, 0] = 0.5*demux[0:6:2, :, :, 0].sum(axis=0)
+    creative[:, :, 1] = 1.0*demux[5:15:2, :, :, 1].sum(axis=0)
+    creative[:, :, 2] = 2.0*demux[3::4, :, :, 2].sum(axis=0)
 else:
     creative = demux[0::3].sum(axis=0)
 creative = creative + ambient / 4.0
@@ -222,7 +207,6 @@ fig = im.show_stack(im.side_by_side(impulse, demux + ambient),
                     "Impulse (left) vs demultiplexed (right)",
                     GAMMA_DISPLAY, fignum=100)
 im.save_figure(fig, "09_impulse_vs_demux")
-
 # Zoom in to better see the noise levels.
 
 # The all-on frames, averaged, are the gold standard: a direct
@@ -230,14 +214,8 @@ im.save_figure(fig, "09_impulse_vs_demux")
 allon_gold_standard = im.load_stack(DATA_PATH, "AllOn", N_ALLON, BLACK_LEVEL).mean(axis=0)
 
 # TODO 6: estimate the all-on image from the impulse frames.
-#         Think carefully about the ambient.
-#         Each impulse frame already contains one copy of the ambient
-#         light (it was never subtracted from `impulse`). Summing all
-#         N_SITES impulse frames therefore sums the true per-site signal
-#         *and* N_SITES copies of ambient. The all-on scene should only
-#         contain ONE copy of ambient, so remove the (N_SITES - 1) extra
-#         copies picked up by summing.
-allon_est_impulse = impulse.sum(axis=0) - (N_SITES - 1) * ambient
+#         Think carefully about the ambient. 
+allon_est_impulse = np.sum(impulse - ambient, axis=0) + ambient # <-- your code here
 
 fig = im.show_stack(
     im.side_by_side(allon_gold_standard, allon_est_impulse, allon_est_demux)[None],
@@ -266,11 +244,13 @@ im.save_figure(fig, "11_error_images")
 #         standard, then the peak signal-to-noise ratio of each, and the
 #         advantage multiplexing gives you. Peak value here is 1.0, since
 #         the images are on [0, 1]. Find PSNR and PSNR advantage in dB.
-mse_demux = np.mean(error_demux ** 2)
-mse_impulse = np.mean(error_impulse ** 2)
-psnr_demux_db = 10.0 * np.log10(1.0 / mse_demux)
-psnr_impulse_db = 10.0 * np.log10(1.0 / mse_impulse)
-psnr_advantage_db = psnr_demux_db - psnr_impulse_db
+
+mse_demux = (1/np.shape(demux)[0])*np.sum( demux - allon_gold_standard ) # (1/n)*sum(yi - yhat)^2 # 1.0 # <-- your code here
+mse_impulse = (1/np.shape(impulse)[0])*np.sum( impulse - allon_gold_standard ) # 1.0  # <-- your code here 
+
+psnr_demux_db = 20 * np.log10(1.0 / np.sqrt(mse_demux))  # <-- your code here
+psnr_impulse_db = 20 * np.log10(1.0 / np.sqrt(mse_impulse))  # <-- your code here
+psnr_advantage_db = psnr_demux_db - psnr_impulse_db # <-- your code here
 
 # ======================================================================
 # 9. The same comparison for a single illuminant
@@ -287,7 +267,7 @@ first_gold_standard = im.load_stack(DATA_PATH, "FirstOn", N_FIRSTON,
 #         measured it directly, in one frame. For the demultiplexed
 #         estimate don't forget the impact of ambient light.
 first_est_impulse = impulse[0]
-first_est_demux = demux[0] + ambient
+first_est_demux = demux[0] + ambient  # <-- your code here
 
 fig = im.show_stack(
     im.side_by_side(first_gold_standard, first_est_impulse,
@@ -297,11 +277,13 @@ fig = im.show_stack(
     GAMMA_DISPLAY, fignum=103)
 im.save_figure(fig, "12_single_site_three_way")
 
-mse_first_impulse = np.mean((first_est_impulse - first_gold_standard) ** 2)
-mse_first_demux = np.mean((first_est_demux - first_gold_standard) ** 2)
-psnr_first_impulse_db = 10.0 * np.log10(1.0 / mse_first_impulse)
-psnr_first_demux_db = 10.0 * np.log10(1.0 / mse_first_demux)
-psnr_first_advantage_db = psnr_first_demux_db - psnr_first_impulse_db
+mse_first_impulse = (1/np.shape(first_est_impulse)[0])*np.sum( first_est_impulse - allon_gold_standard )   # <-- your code here
+mse_first_demux = (1/np.shape(first_est_demux)[0])*np.sum( first_est_demux - allon_gold_standard )   # <-- your code here
+
+psnr_first_impulse_db = 20 * np.log10(1.0 / np.sqrt(mse_first_impulse)) # <-- your code here
+psnr_first_demux_db = 20 * np.log10(1.0 / np.sqrt(mse_first_demux)) # <-- your code here
+psnr_first_advantage_db = psnr_first_impulse_db - psnr_first_demux_db # <-- your code here
+
 
 # ======================================================================
 # 10. Report these numbers
