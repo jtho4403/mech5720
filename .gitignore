@@ -6,3 +6,4 @@ data/
 *.ini
 .DS_Store
 out/
+out_part4/
