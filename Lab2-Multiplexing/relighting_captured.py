@@ -85,8 +85,8 @@ SUBTRACT_BLACK = True
 RUN_SWEEP = True
 CROP_SWEEP = [
     ("centre",     None),
-    ("objects",    (250, 400, 900, 1800)),   # <- all even
-    ("background", (200, 200, 256, 256)),
+    ("objects",    (250, 400, 900, 1800)),   # <- all even, same as crop window
+    ("background", (200, 200, 256, 256)),    # zoomed/cropped section of background, no objects present in this window
 ]
 
 N_SITES   = 15                       # 5 x 3 illumination grid == 15 frames
