@@ -199,22 +199,22 @@ if __name__ == "__main__":
               % (mask, cy, cx, r_max, spoke_count))
 
     # ------------------------------------------------------------------
-    # Figure A: intensity vs angle at three radii (centre/middle/edge)
+    # Figure A: intensity vs angle at three radii (centre/middle/edge) --
+    # one standalone figure per mask.
     # ------------------------------------------------------------------
-    fig_a, axes_a = plt.subplots(1, len(MASKS), figsize=(5.2 * len(MASKS), 4.2), sharey=True)
-    for ax, (mask, res) in zip(axes_a, results.items()):
+    for mask, res in results.items():
+        fig_a, ax = plt.subplots(figsize=(7, 4.5))
         for label, frac in DEMO_RADIUS_FRACS.items():
             r = frac * res["r_max"]
             theta, vals = sample_circle(res["green"], res["cy"], res["cx"], r)
             ax.plot(np.degrees(theta), vals, label="%s (r=%.0fpx)" % (label, r), linewidth=1)
-        ax.set_title(mask)
+        ax.set_title("Siemens Star intensity vs. angle -- %s" % mask)
         ax.set_xlabel("angle (deg)")
+        ax.set_ylabel("green intensity")
         ax.set_xlim(0, 360)
-        ax.legend(fontsize=7)
-    axes_a[0].set_ylabel("green intensity")
-    fig_a.suptitle("Siemens Star intensity vs. angle at three radii")
-    fig_a.tight_layout()
-    fig_a.savefig(os.path.join(OUTDIR, "intensity_vs_angle.png"), dpi=150)
+        ax.legend(fontsize=8)
+        fig_a.tight_layout()
+        fig_a.savefig(os.path.join(OUTDIR, "intensity_vs_angle_%s.png" % mask), dpi=150)
 
     # ------------------------------------------------------------------
     # Figure B: MTF vs frequency, all masks overlaid
